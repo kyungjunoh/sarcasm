@@ -8,6 +8,9 @@
 ## 프로젝트 개요
 본 프로젝트는 **KoCoSa(Korean Contextual Sarcasm) 데이터셋**을 활용하여 한국어 반어법(sarcasm)의 **언어적·맥락적 특징을 분석**하고, 이를 바탕으로 **딥러닝 기반 반어법 탐지 모델**을 구축하는 것을 목표로 합니다.
 
+**사용 데이터셋:** KoCoSa (Korean Contextual Sarcasm Dataset)  
+🔗 https://huggingface.co/datasets/YuminKim/KoCoSa
+
 특히 반어법이 **문맥(Context)** 과 **응답(Response)** 간의 의미적 불일치에서 자주 발생한다는 점에 주목하여,
 - **Response 단독 기반 모델**과
 - **Context + Response 결합 기반 모델**
@@ -100,18 +103,3 @@ python ./Scripts/analysis.py
 
 본 분석은 반어법 문장의 **감정 신호, 의미적 불일치, 맥락 의존성** 등을 정량적으로 분석하며,
 모델 설계 및 성능 해석의 근거로 활용됩니다.
-
----
-
-## 기대 효과
-- 한국어 반어법의 **언어적 특징 체계화**
-- 문맥 정보를 활용한 반어법 탐지 성능 향상 검증
-- 문화콘텐츠 분석 및 한국어 자연어처리 연구에의 활용 가능성 제시
-
----
-
-## 참고
-- Dataset: **KoCoSa (Korean Contextual Sarcasm Dataset)**
-- Task: Korean Sarcasm Detection
-- Keywords: `Sarcasm Detection`, `Korean NLP`, `BERT`, `GPT`, `Context Modeling`
-
