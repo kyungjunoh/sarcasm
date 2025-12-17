@@ -84,13 +84,15 @@ pip install -r requirements.txt
 ---
 
 ### 2️⃣ GPT 모델 학습
-- 로컬 환경에서 실행
-- Bash 스크립트를 통해 학습 및 평가 진행
+- 로컬 환경에서 실행  
+- Bash 스크립트를 통해 학습 및 평가 진행  
 
 ```bash
-# 예시 (실제 명령어는 Bash 폴더 내 .sh 파일 참고)
-bash ./Bash/train_gpt.sh
-bash ./Bash/eval_gpt.sh
+# Few-shot prompt 기반 실험
+bash ./bash/train_gpt_prompt.sh
+
+# Classifier 기반 GPT 모델 학습
+bash ./bash/train_gpt.sh
 ```
 
 ---
@@ -98,7 +100,7 @@ bash ./Bash/eval_gpt.sh
 ### 3️⃣ 언어학적 분석 실행
 
 ```bash
-python ./Scripts/analysis.py
+python ./scripts/analysis.py
 ```
 
 본 분석은 반어법 문장의 **감정 신호, 의미적 불일치, 맥락 의존성** 등을 정량적으로 분석하며,

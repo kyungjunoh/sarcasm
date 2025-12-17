@@ -16,9 +16,9 @@ def get_arguments():
     parser = ArgumentParser(description="Training Arguments")
     
     # Dataset
-    parser.add_argument("--train_df", type=str, default="/data/deep/sarcasm/src/data/KoCoSa_json/train.jsonl", help="Path to the training data directory")
-    parser.add_argument("--val_df", type=str, default="/data/deep/sarcasm/src/data/KoCoSa_json/val.jsonl", help="Path to the validation data directory")
-    parser.add_argument("--test_df", type=str, default="/data/deep/sarcasm/src/data/KoCoSa_json/test.jsonl", help="Path to the test data directory")
+    parser.add_argument("--train_df", type=str, default="src/data/KoCoSa_json/train.jsonl", help="Path to the training data directory")
+    parser.add_argument("--val_df", type=str, default="src/data/KoCoSa_json/val.jsonl", help="Path to the validation data directory")
+    parser.add_argument("--test_df", type=str, default="src/data/KoCoSa_json/test.jsonl", help="Path to the test data directory")
     
 
     # Training parameters
