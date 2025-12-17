@@ -27,7 +27,7 @@ def get_arguments():
     parser.add_argument("--eval_steps", type=int, default=200, help="Number of steps between evaluations")
     parser.add_argument("--per_device_train_batch_size", type=int, default=8, help="Batch size per device for training")
     parser.add_argument("--per_device_eval_batch_size", type=int, default=8, help="Batch size per device for evaluation")
-    parser.add_argument("--num_train_epochs", type=int, default=1, help="Number of epochs to train the model")
+    parser.add_argument("--num_train_epochs", type=int, default=3, help="Number of epochs to train the model")
     parser.add_argument("--warmup_steps", type=int, default=500, help="Number of warmup steps for the optimizer")
     parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay for the optimizer")
 

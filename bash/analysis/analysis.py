@@ -60,6 +60,8 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     # Use progress_apply to show progress
     df['response_morphs'] = df['response'].progress_apply(utils.get_morphs)
     df['response_pos'] = df['response'].progress_apply(utils.get_pos)
+
+    df['sarcasm_explanation'] = df['sarcasm_explanation'].progress_apply(lambda x: x if isinstance(x, str) else "")
     
     print("✅ Preprocessing complete.")
     return df

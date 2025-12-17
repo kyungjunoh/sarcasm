@@ -18,12 +18,32 @@ from configs.train_arguements import get_arguments
 from src.data.get_dataset import get_dataset
 from src.model.get_model import get_model
 from src.utils.compute_metrics import compute_metrics
+from typing import Dict, List
+import torch
 
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+
+def custom_data_collator(features: List[Dict]) -> Dict:
+    """
+    gpt_prompt 모델을 위한 custom data collator.
+    raw_context와 raw_response를 배치로 묶어서 전달.
+    """
+    batch = {
+        'input_ids': torch.stack([f['input_ids'] for f in features]),
+        'attention_mask': torch.stack([f['attention_mask'] for f in features]),
+        'labels': torch.stack([f['labels'] for f in features])
+    }
+    
+    # raw_context와 raw_response가 있으면 리스트로 전달
+    if 'raw_context' in features[0]:
+        batch['raw_context'] = [f['raw_context'] for f in features]
+        batch['raw_response'] = [f['raw_response'] for f in features]
+    
+    return batch
 
 def main(args):
 
@@ -51,13 +71,17 @@ def main(args):
         load_best_model_at_end=True
     )
 
+    # gpt_prompt 모델은 custom data collator 사용
+    data_collator = custom_data_collator if args.model == 'gpt_prompt' else None
+    
     trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset,
-    eval_dataset=val_dataset,
-    compute_metrics=compute_metrics,
-)
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=val_dataset,
+        compute_metrics=compute_metrics,
+        data_collator=data_collator,
+    )
 
     # gpt_prompt 모델은 few-shot 프롬프트 기반이므로 학습하지 않고 평가만 수행
     if args.model == 'gpt_prompt':
