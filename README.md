@@ -45,8 +45,13 @@
 │   │   └── 언어학적 분석을 수행하기 위한 메인 실행 코드
 │   ├── BERT(Context+Response).ipynb
 │   │   └── 전처리 + Context & Response 기반 BERT 학습 및 평가 코드
-│   └── BERT(Only Response).ipynb
-│       └── 전처리 + Response 단독 기반 BERT 학습 및 평가 코드
+│   ├── BERT(Only Response).ipynb
+│   │   └── 전처리 + Response 단독 기반 BERT 학습 및 평가 코드
+│   ├── data_crawling.ipynb
+│   │   └── Selenium을 이용한 영화 리뷰 및 블로그 문맥 크롤링 코드
+│   └── movie_reviews_demo.ipynb
+│       └── 학습된 모델을 불러와 실제 리뷰 데이터에 대한 반어법 추론 실행 코드
+│
 │
 ├── src/
 │   ├── data/
@@ -107,3 +112,13 @@ python ./scripts/analysis.py
 모델 설계 및 성능 해석의 근거로 활용됩니다.
 
 ### 4️⃣ 영화 리뷰 데이터 크롤링 및 추론 실행
+```bash
+# 영화 리뷰 및 블로그 게시글 데이터 크롤링
+# 로컬 Jupyter Notebook 환경 권장
+python ./scripts/data_crawling.ipynb
+
+# 모델 추론
+# Google Colab 환경에서 **T4 GPU** 사용
+python ./scripts/movie_reviews_demo.ipynb
+```
+
