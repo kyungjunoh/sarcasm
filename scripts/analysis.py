@@ -19,6 +19,7 @@ from src.analyzers import (
     MorphologyAnalyzer,
     SyntaxAnalyzer,
     SemanticAnalyzer,
+    PragmaticAnalyzer,
     utils
 )
 
@@ -101,6 +102,8 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     # Use progress_apply to show progress
     df['response_morphs'] = df['response'].progress_apply(utils.get_morphs)
     df['response_pos'] = df['response'].progress_apply(utils.get_pos)
+
+    df['sarcasm_explanation'] = df['sarcasm_explanation'].progress_apply(lambda x: x if isinstance(x, str) else "")
     
     print("✅ Preprocessing complete.")
     return df
@@ -115,7 +118,7 @@ def main():
     print("="*70)
 
     # --- 1. Data Loading and Preprocessing ---
-    DATA_DIR = '/Users/kipyokim/Desktop/langcont/data/KoCoSa_json'
+    DATA_DIR = '/data/deep/sarcasm/src/data/KoCoSa_json'
     df = load_kocosa_data(DATA_DIR)
     # Reduce dataset size for faster processing if needed
     # df = df.sample(n=1000, random_state=42).copy()
@@ -126,6 +129,14 @@ def main():
     labels = df['label'].tolist()
     morphs_list = df['response_morphs'].tolist()
     pos_tags_list = df['response_pos'].tolist()
+
+    # Prepare data for pragmatic analysis
+    contexts = df['context'].tolist()
+    responses = df['response'].tolist()
+    explanations = df['sarcasm_explanation'].tolist()
+    
+    context_morphs_list = [utils.get_morphs(ctx) for ctx in contexts]
+    explanation_morphs_list = [utils.get_morphs(exp) if exp else [] for exp in explanations]
 
     # --- 2. Analyzers Execution ---
     
@@ -145,9 +156,9 @@ def main():
     syntax_analyzer.analyze(pos_tags_list, labels)
     syntax_analyzer.visualize()
 
-    # Semantic Analysis
+    # Semantic Analysis (Run before Pragmatic to get sentiment scores)
     print("\n" + "-"*70)
-    print("4️⃣  Running Semantic Analysis")
+    print("3️⃣  Running Semantic Analysis")
     print("-"*70)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -157,7 +168,17 @@ def main():
     print("🧠 Loading models for semantic analysis...")
     embedding_tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/distiluse-base-multilingual-cased-v1')
     embedding_model = AutoModel.from_pretrained('sentence-transformers/distiluse-base-multilingual-cased-v1').to(device)
-    sentiment_pipeline = pipeline('sentiment-analysis', model='matthewburke/korean_sentiment', device=0 if device.type == 'cuda' else -1)
+    
+    # Use a different sentiment model or skip sentiment analysis
+    try:
+        sentiment_pipeline = pipeline('sentiment-analysis', model='matthewburke/korean_sentiment', device=0 if device.type == 'cuda' else -1)
+    except Exception as e:
+        print(f"⚠️  Warning: Could not load sentiment model. Using neutral sentiment scores. Error: {e}")
+        # Create a dummy sentiment function
+        def dummy_sentiment(texts):
+            return [0.0] * len(texts)
+        sentiment_pipeline = None
+    
     print("✅ Models loaded.")
 
     # Get embeddings and sentiments
@@ -166,18 +187,35 @@ def main():
 
     context_embeddings = get_embeddings(context_texts, embedding_model, embedding_tokenizer, device)
     response_embeddings = get_embeddings(response_texts, embedding_model, embedding_tokenizer, device)
-    context_sentiments = get_sentiments(context_texts, sentiment_pipeline)
-    response_sentiments = get_sentiments(response_texts, sentiment_pipeline)
+    
+    if sentiment_pipeline:
+        context_sentiments = get_sentiments(context_texts, sentiment_pipeline)
+        response_sentiments = get_sentiments(response_texts, sentiment_pipeline)
+    else:
+        # Use neutral sentiments if model loading failed
+        context_sentiments = [0.0] * len(context_texts)
+        response_sentiments = [0.0] * len(response_texts)
     
     semantic_analyzer = SemanticAnalyzer()
     semantic_analyzer.analyze(context_embeddings, response_embeddings, context_sentiments, response_sentiments, labels)
     semantic_analyzer.visualize()
+
+    # Pragmatic Analysis (Uses sentiment scores from semantic analysis)
+    print("\n" + "-"*70)
+    print("4️⃣  Running Pragmatic Analysis")
+    print("-"*70)
+    pragmatic_analyzer = PragmaticAnalyzer()
+    pragmatic_analyzer.analyze(contexts, responses, explanations, 
+                              context_morphs_list, morphs_list, explanation_morphs_list, labels,
+                              context_sentiments, response_sentiments)
+    pragmatic_analyzer.visualize()
 
     print("\n✅ All analyses are complete!")
     print("📁 Generated analysis image files:")
     print("   - morphology_analysis.png")
     print("   - syntax_analysis.png")
     print("   - semantic_analysis.png")
+    print("   - pragmatic_analysis.png")
     print("\n" + "="*70)
 
 

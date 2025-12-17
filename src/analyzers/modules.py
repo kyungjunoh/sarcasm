@@ -9,6 +9,8 @@ import re
 import platform
 
 from .base import BaseAnalyzer
+import koreanize_matplotlib
+
 
 # Set Korean font for plotting
 if platform.system() == 'Darwin':  # For macOS
@@ -382,139 +384,258 @@ class SemanticAnalyzer(BaseAnalyzer):
 
 
 class PragmaticAnalyzer(BaseAnalyzer):
-    """Pragmatic analysis class - analyzes non-verbal cues"""
+    """Pragmatic analysis class - analyzes literal meaning vs. intended meaning in context"""
     
     def __init__(self):
-        self.signal_patterns = {
-            'elongation': r'(.)\1{2,}',  # Elongation
-            'laughter': r'[ㅋㅎ]{2,}',   # Laughter
-            'quotation': r'["\']',        # Quotation
-            'emphasis': r'[!?]{2,}',      # Emphasis
-            'dot': r'\.{2,}',             # Repeating dots
-        }
-        self.sarcasm_signals = []
-        self.normal_signals = []
+        self.sarcasm_cases = []  # Cases with meaning mismatch
+        self.normal_cases = []   # Cases with aligned meaning
         
-    def analyze(self, texts: List[str], labels: List[int]):
-        """Detect pragmatic signals"""
+        # Analyze intention types in explanations
+        self.intention_patterns = Counter()  # What sarcasm actually intends
+        self.context_response_alignment = []  # Sentiment alignment between context and response
         
-        for text, label in zip(texts, labels):
-            signals = {
-                'elongation': bool(re.search(self.signal_patterns['elongation'], text)),
-                'laughter': bool(re.search(self.signal_patterns['laughter'], text)),
-                'quotation': bool(re.search(self.signal_patterns['quotation'], text)),
-                'emphasis': bool(re.search(self.signal_patterns['emphasis'], text)),
-                'dot': bool(re.search(self.signal_patterns['dot'], text)),
-            }
+    def analyze(self, contexts: List[str], responses: List[str], explanations: List[str], 
+                context_morphs: List[List[str]], response_morphs: List[List[str]], 
+                explanation_morphs: List[List[str]], labels: List[int],
+                context_sentiments: List[float] = None, response_sentiments: List[float] = None):
+        """
+        Analyze pragmatic meaning mismatch: literal meaning vs. intended meaning
+        
+        Args:
+            contexts: Context (what was said before)
+            responses: Response utterances (literal meaning)
+            explanations: Sarcasm explanations (intended meaning)
+            context_morphs: Morphemes from context
+            response_morphs: Morphemes from response
+            explanation_morphs: Morphemes from sarcasm_explanation
+            labels: Labels (0: normal, 1: sarcasm)
+            context_sentiments: Sentiment scores for context
+            response_sentiments: Sentiment scores for response
+        """
+        for idx, (ctx, resp, exp, ctx_m, resp_m, exp_m, label) in enumerate(zip(
+            contexts, responses, explanations, context_morphs, response_morphs, explanation_morphs, labels
+        )):
+            ctx_sent = context_sentiments[idx] if context_sentiments else 0
+            resp_sent = response_sentiments[idx] if response_sentiments else 0
             
-            if label == 1:
-                self.sarcasm_signals.append(signals)
-            else:
-                self.normal_signals.append(signals)
+            if label == 1:  # Sarcasm - meaning mismatch exists
+                self.sarcasm_cases.append({
+                    'context': ctx,
+                    'response': resp,
+                    'explanation': exp,
+                    'context_morphs': ctx_m,
+                    'response_morphs': resp_m,
+                    'explanation_morphs': exp_m,
+                    'context_sentiment': ctx_sent,
+                    'response_sentiment': resp_sent,
+                    'sentiment_mismatch': self._detect_sentiment_mismatch(ctx_sent, resp_sent)
+                })
+                
+                # Analyze what the speaker actually intends (from explanation)
+                if exp_m:
+                    intentions = self._extract_intentions(exp, exp_m)
+                    self.intention_patterns.update(intentions)
+                    
+            else:  # Normal - literal meaning = intended meaning
+                self.normal_cases.append({
+                    'context': ctx,
+                    'response': resp,
+                    'context_morphs': ctx_m,
+                    'response_morphs': resp_m,
+                    'context_sentiment': ctx_sent,
+                    'response_sentiment': resp_sent,
+                    'sentiment_mismatch': self._detect_sentiment_mismatch(ctx_sent, resp_sent)
+                })
         
-        print(f"✅ Pragmatic analysis complete: {len(self.sarcasm_signals)} sarcasm, {len(self.normal_signals)} normal")
+        print(f"✅ Pragmatic analysis complete: {len(self.sarcasm_cases)} sarcasm (meaning mismatch), {len(self.normal_cases)} normal cases")
+    
+    def _detect_sentiment_mismatch(self, context_sent: float, response_sent: float) -> str:
+        """Detect if response sentiment mismatches with context sentiment"""
+        # Positive context + Negative response or vice versa = mismatch
+        if context_sent > 0.1 and response_sent < -0.1:
+            return 'positive_to_negative'
+        elif context_sent < -0.1 and response_sent > 0.1:
+            return 'negative_to_positive'
+        elif abs(context_sent - response_sent) > 0.5:
+            return 'large_gap'
+        else:
+            return 'aligned'
+    
+    def _extract_intentions(self, explanation: str, exp_morphs: List[str]) -> List[str]:
+        """Extract what the speaker actually intends from sarcasm explanation"""
+        intentions = []
+        
+        # Common intention keywords in Korean sarcasm explanations
+        intention_keywords = {
+            '비꼬': 'mocking',
+            '조롱': 'ridicule',
+            '반대': 'opposite_meaning',
+            '위로': 'comfort',
+            '공감': 'empathy',
+            '비난': 'criticism',
+            '칭찬': 'praise_opposite',
+            '농담': 'joke',
+            '장난': 'teasing',
+            '아이러니': 'irony',
+            '역설': 'paradox',
+            '반어': 'irony',
+            '빈정': 'sarcasm',
+            '냉소': 'cynicism'
+        }
+        
+        for keyword, intention in intention_keywords.items():
+            if keyword in explanation:
+                intentions.append(intention)
+        
+        # If no specific keyword found, mark as general sarcasm
+        if not intentions:
+            intentions.append('general_sarcasm')
+        
+        return intentions
     
     def get_distinctive_features(self) -> pd.DataFrame:
-        """Pragmatic signal statistics"""
+        """Analyze meaning mismatch patterns"""
         
-        signal_names = list(self.signal_patterns.keys())
-        data = []
+        # Sentiment mismatch distribution
+        sarcasm_mismatch = Counter([case['sentiment_mismatch'] for case in self.sarcasm_cases])
+        normal_mismatch = Counter([case['sentiment_mismatch'] for case in self.normal_cases])
         
-        sarcasm_total = len(self.sarcasm_signals)
-        normal_total = len(self.normal_signals)
-
-        for signal in signal_names:
-            sarcasm_count = sum(1 for s in self.sarcasm_signals if s[signal])
-            normal_count = sum(1 for s in self.normal_signals if s[signal])
+        total_sarcasm = len(self.sarcasm_cases)
+        total_normal = len(self.normal_cases)
+        
+        mismatch_types = ['positive_to_negative', 'negative_to_positive', 'large_gap', 'aligned']
+        results = []
+        
+        for mtype in mismatch_types:
+            sarcasm_count = sarcasm_mismatch[mtype]
+            normal_count = normal_mismatch[mtype]
             
-            sarcasm_pct = sarcasm_count / sarcasm_total * 100 if sarcasm_total > 0 else 0
-            normal_pct = normal_count / normal_total * 100 if normal_total > 0 else 0
+            sarcasm_rate = (sarcasm_count / total_sarcasm * 100) if total_sarcasm > 0 else 0
+            normal_rate = (normal_count / total_normal * 100) if total_normal > 0 else 0
             
-            data.append({
-                'signal': signal,
-                'sarcasm_count': sarcasm_count,
-                'normal_count': normal_count,
-                'sarcasm_pct': sarcasm_pct,
-                'normal_pct': normal_pct,
-                'difference': sarcasm_pct - normal_pct
+            results.append({
+                'mismatch_type': mtype,
+                'sarcasm_rate': sarcasm_rate,
+                'normal_rate': normal_rate,
+                'difference': sarcasm_rate - normal_rate
             })
         
-        return pd.DataFrame(data)
+        return pd.DataFrame(results)
+    
+    def get_intention_analysis(self, top_n: int = 10) -> pd.DataFrame:
+        """Analyze what sarcasm actually intends (from explanations)"""
+        
+        total = sum(self.intention_patterns.values())
+        if total == 0:
+            return pd.DataFrame()
+        
+        intentions = []
+        for intent, count in self.intention_patterns.most_common(top_n):
+            intentions.append({
+                'intention': intent,
+                'count': count,
+                'percentage': count / total * 100
+            })
+        
+        return pd.DataFrame(intentions)
+    
+    def get_statistics(self) -> Dict:
+        """Calculate statistics on pragmatic meaning mismatch"""
+        
+        # Sentiment alignment analysis
+        sarcasm_aligned = sum(1 for case in self.sarcasm_cases if case['sentiment_mismatch'] == 'aligned')
+        normal_aligned = sum(1 for case in self.normal_cases if case['sentiment_mismatch'] == 'aligned')
+        
+        total_sarcasm = len(self.sarcasm_cases)
+        total_normal = len(self.normal_cases)
+        
+        # Response sentiment distribution
+        sarcasm_positive_resp = sum(1 for case in self.sarcasm_cases if case['response_sentiment'] > 0.1)
+        sarcasm_negative_resp = sum(1 for case in self.sarcasm_cases if case['response_sentiment'] < -0.1)
+        
+        # Cases with explanations
+        with_explanation = sum(1 for case in self.sarcasm_cases if case['explanation'])
+        
+        # Length statistics
+        sarcasm_response_lengths = [len(case['response_morphs']) for case in self.sarcasm_cases]
+        normal_response_lengths = [len(case['response_morphs']) for case in self.normal_cases]
+        explanation_lengths = [len(case['explanation_morphs']) for case in self.sarcasm_cases if case['explanation_morphs']]
+        
+        return {
+            'total_sarcasm': total_sarcasm,
+            'total_normal': total_normal,
+            'sarcasm_aligned_rate': (sarcasm_aligned / total_sarcasm * 100) if total_sarcasm > 0 else 0,
+            'normal_aligned_rate': (normal_aligned / total_normal * 100) if total_normal > 0 else 0,
+            'sarcasm_positive_response_rate': (sarcasm_positive_resp / total_sarcasm * 100) if total_sarcasm > 0 else 0,
+            'sarcasm_negative_response_rate': (sarcasm_negative_resp / total_sarcasm * 100) if total_sarcasm > 0 else 0,
+            'with_explanation': with_explanation,
+            'explanation_rate': (with_explanation / total_sarcasm * 100) if total_sarcasm > 0 else 0,
+            'avg_sarcasm_response_length': np.mean(sarcasm_response_lengths) if sarcasm_response_lengths else 0,
+            'avg_normal_response_length': np.mean(normal_response_lengths) if normal_response_lengths else 0,
+            'avg_explanation_length': np.mean(explanation_lengths) if explanation_lengths else 0
+        }
     
     def visualize(self):
-        """Visualize pragmatic analysis results"""
+        """Visualize pragmatic analysis: Intended Meanings Behind Sarcasm"""
         
-        df = self.get_distinctive_features()
+        df_intentions = self.get_intention_analysis()
+        stats = self.get_statistics()
         
-        # English signal names
-        signal_names_en = {
-            'elongation': 'Elongation',
-            'laughter': 'Laughter',
-            'quotation': 'Quotation',
-            'emphasis': 'Emphasis',
-            'dot': 'Dots'
-        }
-        df['signal_en'] = df['signal'].map(signal_names_en)
+        fig, ax = plt.subplots(1, 1, figsize=(12, 8))
         
-        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-        
-        # 1. Pragmatic Signal Occurrence Rate
-        x = np.arange(len(df))
-        width = 0.35
-        
-        axes[0, 0].bar(x - width/2, df['sarcasm_pct'], width, label='Sarcasm', color='#f59e0b', alpha=0.8)
-        axes[0, 0].bar(x + width/2, df['normal_pct'], width, label='Normal', color='#06b6d4', alpha=0.8)
-        axes[0, 0].set_xlabel('Pragmatic Signal', fontsize=12)
-        axes[0, 0].set_ylabel('Occurrence Rate (%)', fontsize=12)
-        axes[0, 0].set_title('Pragmatic Signal Frequency', fontsize=14, fontweight='bold')
-        axes[0, 0].set_xticks(x)
-        axes[0, 0].set_xticklabels(df['signal_en'], rotation=45, ha='right')
-        axes[0, 0].legend()
-        axes[0, 0].grid(axis='y', alpha=0.3)
-        
-        # 2. Difference
-        colors = ['#ef4444' if d > 0 else '#10b981' for d in df['difference']]
-        axes[0, 1].barh(df['signal_en'], df['difference'], color=colors, alpha=0.8)
-        axes[0, 1].set_xlabel('Occurrence Rate Difference (Sarcasm - Normal) %', fontsize=12)
-        axes[0, 1].set_title('Sarcastic Pragmatic Signals', fontsize=14, fontweight='bold')
-        axes[0, 1].axvline(x=0, color='black', linestyle='-', linewidth=0.8)
-        axes[0, 1].grid(axis='x', alpha=0.3)
-        
-        # 3. Signal Count Distribution
-        sarcasm_signal_counts = [sum(s.values()) for s in self.sarcasm_signals]
-        normal_signal_counts = [sum(s.values()) for s in self.normal_signals]
-        
-        axes[1, 0].hist(sarcasm_signal_counts, bins=6, alpha=0.6, label='Sarcasm', color='#ef4444', edgecolor='black', range=(-0.5, 5.5))
-        axes[1, 0].hist(normal_signal_counts, bins=6, alpha=0.6, label='Normal', color='#10b981', edgecolor='black', range=(-0.5, 5.5))
-        axes[1, 0].set_xlabel('Pragmatic Signals per Sentence', fontsize=12)
-        axes[1, 0].set_ylabel('Frequency', fontsize=12)
-        axes[1, 0].set_title('Distribution of Pragmatic Signals per Sentence', fontsize=14, fontweight='bold')
-        axes[1, 0].legend()
-        axes[1, 0].grid(alpha=0.3)
-        
-        # 4. Pie Chart (Signal distribution in sarcastic sentences)
-        signal_counts_in_sarcasm = df[['signal_en', 'sarcasm_count']].values
-        axes[1, 1].pie(
-            signal_counts_in_sarcasm[:, 1],
-            labels=signal_counts_in_sarcasm[:, 0],
-            autopct='%1.1f%%',
-            startangle=90,
-            colors=['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#8b5cf6']
-        )
-        axes[1, 1].set_title('Composition of Pragmatic Signals in Sarcasm', fontsize=14, fontweight='bold')
+        # Intended Meanings Behind Sarcasm
+        if not df_intentions.empty:
+            intention_labels = {
+                'mocking': '비꼬기 (Mocking)',
+                'ridicule': '조롱 (Ridicule)',
+                'opposite_meaning': '반대 의미 (Opposite)',
+                'comfort': '위로 (Comfort)',
+                'empathy': '공감 (Empathy)',
+                'criticism': '비난 (Criticism)',
+                'praise_opposite': '가짜 칭찬 (Fake Praise)',
+                'joke': '농담 (Joke)',
+                'teasing': '장난 (Teasing)',
+                'irony': '아이러니 (Irony)',
+                'general_sarcasm': '일반 비꼬기 (General)'
+            }
+            df_intentions['label'] = df_intentions['intention'].map(lambda x: intention_labels.get(x, x))
+            
+            colors_intent = plt.cm.Reds(df_intentions['percentage'] / df_intentions['percentage'].max())
+            ax.barh(df_intentions['label'], df_intentions['percentage'], color=colors_intent, alpha=0.8)
+            ax.set_xlabel('비율 (Percentage in Sarcasm Cases) %', fontsize=14)
+            ax.set_title('비꼰기의 실제 의도 (Intended Meanings Behind Sarcasm)', fontsize=16, fontweight='bold')
+            ax.grid(axis='x', alpha=0.3)
+            ax.invert_yaxis()
+            
+            # Add percentage labels
+            for idx, (label, pct) in enumerate(zip(df_intentions['label'], df_intentions['percentage'])):
+                ax.text(pct + 1, idx, f'{pct:.1f}%', va='center', fontsize=11)
+        else:
+            ax.text(0.5, 0.5, 'No explanation data available', ha='center', va='center', fontsize=12)
+            ax.axis('off')
         
         plt.tight_layout()
         plt.savefig('pragmatic_analysis.png', dpi=300, bbox_inches='tight')
         plt.show()
         
         # Print statistics
-        print("\n📊 Key Findings in Pragmatic Analysis:")
-        top_signal = df.loc[df['sarcasm_pct'].idxmax()]
-        print(f"  • Most common sarcastic signal: '{top_signal['signal_en']}' ({top_signal['sarcasm_pct']:.1f}% of sarcasm)")
-        print(f"  • Avg signals per sentence (Sarcasm): {np.mean(sarcasm_signal_counts):.2f}")
-        print(f"  • Avg signals per sentence (Normal): {np.mean(normal_signal_counts):.2f}")
-        strong_signals = df[df['difference'] > 20]
-        print(f"  • Strong sarcastic signals (>20% diff): {', '.join(strong_signals['signal_en'].tolist())}")
+        print("\n📊 화용론적 분석 주요 결과 (Key Findings in Pragmatic Analysis):")
+        print(f"  • 전체 비꼬기 사례: {stats['total_sarcasm']}개")
+        print(f"  • 설명이 있는 사례: {stats['with_explanation']}개 ({stats['explanation_rate']:.1f}%)")
+        
+        if not df_intentions.empty:
+            top_intention = df_intentions.iloc[0]
+            print(f"\n  🎯 가장 흔한 비꼬기 의도: '{top_intention['label']}' ({top_intention['percentage']:.1f}%)")
+            if len(df_intentions) > 1:
+                print(f"  📊 상위 의도 분포:")
+                for i, row in df_intentions.head(5).iterrows():
+                    print(f"     - {row['label']}: {row['percentage']:.1f}%")
+        
+        print(f"\n  ⚠️  화용론적 핵심: 비꼬기는 '말한 것'과 '의도한 것'이 다릅니다!")
+        print(f"      (Sarcasm shows clear pragmatic mismatch: literal ≠ intended meaning)")
+    
+    
+
 
 
 class IntegratedAnalyzer:
