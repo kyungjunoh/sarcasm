@@ -13,3 +13,5 @@ accelerate
 protobuf
 SentencePiece
 wandb
+selenium
+webdriver_manager
