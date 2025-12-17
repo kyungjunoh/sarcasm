@@ -25,7 +25,7 @@ def load_kocosa(path):
 
 def get_dataset(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-
+    
     train_df = load_kocosa(args.train_df)
     val_df = load_kocosa(args.val_df)
     test_df = load_kocosa(args.test_df)

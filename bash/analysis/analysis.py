@@ -90,7 +90,7 @@ def main():
     print("1️⃣  Running Morphological Analysis")
     print("-"*70)
     morphology_analyzer = MorphologyAnalyzer()
-    morphology_analyzer.analyze(morphs_list, labels)
+    morphology_analyzer.analyze(pos_tags_list, labels)
     morphology_analyzer.visualize()
 
     # Syntactic Analysis

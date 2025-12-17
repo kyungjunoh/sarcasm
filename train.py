@@ -59,11 +59,23 @@ def main(args):
     compute_metrics=compute_metrics,
 )
 
-    trainer.train()
-    
-    print("\n최종 테스트 결과 평가:")
-    metrics = trainer.evaluate(eval_dataset=test_dataset)
-    print(metrics)
+    # gpt_prompt 모델은 few-shot 프롬프트 기반이므로 학습하지 않고 평가만 수행
+    if args.model == 'gpt_prompt':
+        print("\nFew-shot 프롬프트 모델 - 학습 없이 평가만 수행")
+        print("\nValidation 결과:")
+        val_metrics = trainer.evaluate(eval_dataset=val_dataset)
+        print(val_metrics)
+        
+        print("\nTest 결과:")
+        test_metrics = trainer.evaluate(eval_dataset=test_dataset)
+        print(test_metrics)
+    else:
+        # 다른 모델들은 정상적으로 학습
+        trainer.train()
+        
+        print("\n최종 테스트 결과 평가:")
+        metrics = trainer.evaluate(eval_dataset=test_dataset)
+        print(metrics)
 
 if __name__=="__main__":
     args = get_arguments()   

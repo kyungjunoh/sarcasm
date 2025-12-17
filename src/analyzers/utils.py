@@ -36,16 +36,17 @@ def get_morphs(text: str) -> List[str]:
         raise ImportError("Okt tagger is not available. Please install konlpy.")
     return okt.morphs(text, stem=True)
 
-def get_pos(text: str) -> List[str]:
+def get_pos(text: str) -> List[Tuple[str, str]]:
     """
-    주어진 텍스트에서 품사만 추출합니다.
+    주어진 텍스트에서 (형태소, 품사) 정보를 추출합니다.
     
     Args:
         text: 분석할 텍스트
         
     Returns:
-        품사 문자열의 리스트
+        (형태소, 품사) 튜플의 리스트
     """
     if not okt:
         raise ImportError("Okt tagger is not available. Please install konlpy.")
-    return [tag for _, tag in okt.pos(text, stem=True)]
+    # 동일한 형태의 출력이 필요하므로 pos_tag와 동일한 형식을 반환
+    return okt.pos(text, stem=True)

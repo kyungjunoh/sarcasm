@@ -7,6 +7,7 @@ from typing import List, Dict, Tuple
 import warnings
 import re
 import platform
+import koreanize_matplotlib
 
 from .base import BaseAnalyzer
 
