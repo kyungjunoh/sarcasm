@@ -1,0 +1,15 @@
+pandas
+numpy
+scikit-learn
+scipy
+kiwipiepy
+matplotlib
+datasets
+seaborn
+konlpy
+torch
+transformers
+accelerate
+protobuf
+SentencePiece
+wandb

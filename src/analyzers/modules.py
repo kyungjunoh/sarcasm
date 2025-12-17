@@ -146,7 +146,7 @@ class SyntaxAnalyzer(BaseAnalyzer):
                 self.sarcasm_patterns.extend(trigrams)
                 self.sarcasm_lengths.append(len(pos_tags))
             else:  # Normal
-                self.normal_patterns.extend(bigrams)
+                self.normal_patterns.extend(trigrams)
                 self.normal_lengths.append(len(pos_tags))
         
         print(f"✅ Syntactic analysis complete: {len(self.sarcasm_lengths)} sarcasm, {len(self.normal_lengths)} normal")
