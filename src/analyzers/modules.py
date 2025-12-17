@@ -7,7 +7,6 @@ from typing import List, Dict, Tuple
 import warnings
 import re
 import platform
-import koreanize_matplotlib
 
 from .base import BaseAnalyzer
 
@@ -140,14 +139,14 @@ class SyntaxAnalyzer(BaseAnalyzer):
             labels: Labels (0: normal, 1: sarcasm)
         """
         for pos_tags, label in zip(pos_tags_list, labels):
-            # Extract bigram patterns
-            bigrams = [f"{pos_tags[i]}-{pos_tags[i+1]}" for i in range(len(pos_tags)-1)]
+            # Extract trigram patterns
+            trigrams = [f"{pos_tags[i]}-{pos_tags[i+1]}-{pos_tags[i+2]}" for i in range(len(pos_tags)-2)]
             
             if label == 1:  # Sarcasm
-                self.sarcasm_patterns.extend(bigrams)
+                self.sarcasm_patterns.extend(trigrams)
                 self.sarcasm_lengths.append(len(pos_tags))
             else:  # Normal
-                self.normal_patterns.extend(bigrams)
+                self.normal_patterns.extend(trigrams)
                 self.normal_lengths.append(len(pos_tags))
         
         print(f"✅ Syntactic analysis complete: {len(self.sarcasm_lengths)} sarcasm, {len(self.normal_lengths)} normal")
@@ -196,7 +195,7 @@ class SyntaxAnalyzer(BaseAnalyzer):
         axes[0, 0].bar(x + width/2, df_patterns['normal_freq'], width, label='Normal', color='#06b6d4', alpha=0.8)
         axes[0, 0].set_xlabel('POS Pattern', fontsize=12)
         axes[0, 0].set_ylabel('Frequency (%)', fontsize=12)
-        axes[0, 0].set_title('Distinctive Syntactic Patterns (Bigram)', fontsize=14, fontweight='bold')
+        axes[0, 0].set_title('Distinctive Syntactic Patterns (Trigram)', fontsize=14, fontweight='bold')
         axes[0, 0].set_xticks(x)
         axes[0, 0].set_xticklabels(df_patterns['pattern'], rotation=45, ha='right')
         axes[0, 0].legend()
