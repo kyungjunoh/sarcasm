@@ -12,13 +12,12 @@ from .base import BaseAnalyzer
 import koreanize_matplotlib
 
 
-# Set Korean font for plotting
-if platform.system() == 'Darwin':  # For macOS
+if platform.system() == 'Darwin':  
     plt.rcParams['font.family'] = 'AppleGothic'
-elif platform.system() == 'Windows':  # For Windows
+elif platform.system() == 'Windows': 
     plt.rcParams['font.family'] = 'Malgun Gothic'
 
-# To handle the minus sign 깨짐
+
 plt.rcParams['axes.unicode_minus'] = False
 
 warnings.filterwarnings('ignore')
@@ -41,23 +40,23 @@ class MorphologyAnalyzer(BaseAnalyzer):
             labels: Labels (0: normal, 1: sarcasm)
         """
         for morphs, label in zip(morphs_list, labels):
-            if label == 1:  # Sarcasm
+            if label == 1:  
                 self.sarcasm_morphemes.update(morphs)
                 self.sarcasm_count += 1
-            else:  # Normal
+            else:  #
                 self.normal_morphemes.update(morphs)
                 self.normal_count += 1
         
-        print(f"✅ Morphological analysis complete: {self.sarcasm_count} sarcasm, {self.normal_count} normal")
+        print(f" Morphological analysis complete: {self.sarcasm_count} sarcasm, {self.normal_count} normal")
         
     def get_distinctive_features(self, top_n: int = 20) -> pd.DataFrame:
         """Extract distinctive sarcastic morphemes"""
         
-        # Calculate relative frequency
+
         sarcasm_freq = {k: v/self.sarcasm_count for k, v in self.sarcasm_morphemes.items()}
         normal_freq = {k: v/self.normal_count for k, v in self.normal_morphemes.items()}
         
-        # Calculate difference
+
         all_morphemes = set(sarcasm_freq.keys()) | set(normal_freq.keys())
         differences = []
         
@@ -66,7 +65,7 @@ class MorphologyAnalyzer(BaseAnalyzer):
             n_freq = normal_freq.get(morph, 0)
             diff = s_freq - n_freq
             
-            if s_freq > 0.01:  # Minimum frequency filter
+            if s_freq > 0.01:  
                 differences.append({
                     'morpheme': morph,
                     'sarcasm_freq': s_freq * 100,
@@ -87,7 +86,7 @@ class MorphologyAnalyzer(BaseAnalyzer):
         
         fig, axes = plt.subplots(1, 2, figsize=(16, 6))
         
-        # 1. Sarcasm vs. Normal Comparison
+    
         x = np.arange(len(df))
         width = 0.35
         
@@ -101,14 +100,14 @@ class MorphologyAnalyzer(BaseAnalyzer):
         axes[0].legend()
         axes[0].grid(axis='y', alpha=0.3)
         
-        # 2. Sarcasm Occurrence Ratio
+      
         colors = plt.cm.RdYlGn_r(df['sarcasm_ratio'] / 100)
         axes[1].barh(df['morpheme'], df['sarcasm_ratio'], color=colors, alpha=0.8)
         axes[1].set_xlabel('Sarcasm Sentence Ratio (%)', fontsize=12)
         axes[1].set_title('Sarcastic Signal Morphemes (Higher is Stronger)', fontsize=14, fontweight='bold')
         axes[1].grid(axis='x', alpha=0.3)
         
-        # 80% threshold line
+     
         axes[1].axvline(x=80, color='red', linestyle='--', alpha=0.5, label='80% Threshold')
         axes[1].legend()
         
@@ -116,8 +115,8 @@ class MorphologyAnalyzer(BaseAnalyzer):
         plt.savefig('morphology_analysis.png', dpi=300, bbox_inches='tight')
         plt.show()
         
-        # Print statistics
-        print("\n📊 Key Findings in Morphological Analysis:")
+        
+        print("\n Key Findings in Morphological Analysis:")
         print(f"  • Strongest sarcastic signal: '{df.iloc[0]['morpheme']}' (Sarcasm occurrence rate {df.iloc[0]['sarcasm_ratio']:.1f}%)")
         print(f"  • Top 3 sarcasm frequency morphemes: {', '.join(df.head(3)['morpheme'].tolist())}")
         print(f"  • Morphemes with >= 80% sarcastic signal: {len(df[df['sarcasm_ratio'] >= 80])}")
@@ -141,17 +140,17 @@ class SyntaxAnalyzer(BaseAnalyzer):
             labels: Labels (0: normal, 1: sarcasm)
         """
         for pos_tags, label in zip(pos_tags_list, labels):
-            # Extract trigram patterns
+            
             trigrams = [f"{pos_tags[i]}-{pos_tags[i+1]}-{pos_tags[i+2]}" for i in range(len(pos_tags)-2)]
             
-            if label == 1:  # Sarcasm
+            if label == 1:  
                 self.sarcasm_patterns.extend(trigrams)
                 self.sarcasm_lengths.append(len(pos_tags))
-            else:  # Normal
+            else:  
                 self.normal_patterns.extend(trigrams)
                 self.normal_lengths.append(len(pos_tags))
         
-        print(f"✅ Syntactic analysis complete: {len(self.sarcasm_lengths)} sarcasm, {len(self.normal_lengths)} normal")
+        print(f" Syntactic analysis complete: {len(self.sarcasm_lengths)} sarcasm, {len(self.normal_lengths)} normal")
     
     def get_distinctive_features(self, top_n: int = 15) -> pd.DataFrame:
         """Extract distinctive syntactic patterns"""
@@ -170,7 +169,7 @@ class SyntaxAnalyzer(BaseAnalyzer):
             n_freq = normal_counter[pattern] / normal_total if normal_total > 0 else 0
             diff = s_freq - n_freq
             
-            if s_freq > 0.005:  # Minimum frequency
+            if s_freq > 0.005:  
                 differences.append({
                     'pattern': pattern,
                     'sarcasm_freq': s_freq * 100,
@@ -188,7 +187,7 @@ class SyntaxAnalyzer(BaseAnalyzer):
         
         fig, axes = plt.subplots(2, 2, figsize=(16, 12))
         
-        # 1. Syntactic Pattern Comparison
+        
         df_patterns = self.get_distinctive_features(12)
         x = np.arange(len(df_patterns))
         width = 0.35
@@ -203,7 +202,7 @@ class SyntaxAnalyzer(BaseAnalyzer):
         axes[0, 0].legend()
         axes[0, 0].grid(axis='y', alpha=0.3)
         
-        # 2. Sentence Length Distribution
+        
         axes[0, 1].hist(self.sarcasm_lengths, bins=20, alpha=0.6, label='Sarcasm', color='#ef4444', edgecolor='black')
         axes[0, 1].hist(self.normal_lengths, bins=20, alpha=0.6, label='Normal', color='#10b981', edgecolor='black')
         axes[0, 1].axvline(np.mean(self.sarcasm_lengths), color='#ef4444', linestyle='--', linewidth=2, label=f'Sarcasm Avg: {np.mean(self.sarcasm_lengths):.1f}')
@@ -214,7 +213,7 @@ class SyntaxAnalyzer(BaseAnalyzer):
         axes[0, 1].legend()
         axes[0, 1].grid(alpha=0.3)
         
-        # 3. Sentence Length Boxplot
+        
         data_length = [self.sarcasm_lengths, self.normal_lengths]
         bp = axes[1, 0].boxplot(data_length, labels=['Sarcasm', 'Normal'], patch_artist=True)
         bp['boxes'][0].set_facecolor('#ef4444')
@@ -223,7 +222,7 @@ class SyntaxAnalyzer(BaseAnalyzer):
         axes[1, 0].set_title('Sentence Length Comparison (Boxplot)', fontsize=14, fontweight='bold')
         axes[1, 0].grid(axis='y', alpha=0.3)
         
-        # 4. Pattern Difference (Top 10)
+    
         df_top = df_patterns.head(10)
         axes[1, 1].barh(df_top['pattern'], df_top['difference'], color='#f59e0b', alpha=0.8)
         axes[1, 1].set_xlabel('Frequency Difference (Sarcasm - Normal) %', fontsize=12)
@@ -234,8 +233,8 @@ class SyntaxAnalyzer(BaseAnalyzer):
         plt.savefig('syntax_analysis.png', dpi=300, bbox_inches='tight')
         plt.show()
         
-        # Print statistics
-        print("\n📊 Key Findings in Syntactic Analysis:")
+    
+        print("\n Key Findings in Syntactic Analysis:")
         print(f"  • Avg sentence length (Sarcasm): {np.mean(self.sarcasm_lengths):.1f} tokens")
         print(f"  • Avg sentence length (Normal): {np.mean(self.normal_lengths):.1f} tokens")
         print(f"  • Length difference: {np.mean(self.normal_lengths) - np.mean(self.sarcasm_lengths):.1f} tokens (Normal is longer)")
@@ -299,13 +298,13 @@ class SemanticAnalyzer(BaseAnalyzer):
         }
     
     def visualize(self):
-        """Visualize semantic analysis results"""
+
         
         stats = self.get_statistics()
         
         fig, axes = plt.subplots(2, 2, figsize=(16, 12))
         
-        # 1. Semantic Similarity Distribution
+        
         sarcasm_sims = [s for s, l in zip(self.similarities, self.labels) if l == 1]
         normal_sims = [s for s, l in zip(self.similarities, self.labels) if l == 0]
         
@@ -319,7 +318,7 @@ class SemanticAnalyzer(BaseAnalyzer):
         axes[0, 0].legend()
         axes[0, 0].grid(alpha=0.3)
         
-        # 2. Sentiment Polarity Scatter Plot
+      
         sarcasm_mask = np.array(self.labels) == 1
         axes[0, 1].scatter(
             np.array(self.context_sentiments)[sarcasm_mask],
@@ -339,8 +338,7 @@ class SemanticAnalyzer(BaseAnalyzer):
         axes[0, 1].grid(alpha=0.3)
         axes[0, 1].set_xlim(-1, 1)
         axes[0, 1].set_ylim(-1, 1)
-        
-        # 3. Polarity Gap Boxplot
+  
         polarity_gaps_s = [abs(c - r) for c, r, l in zip(self.context_sentiments, self.response_sentiments, self.labels) if l == 1]
         polarity_gaps_n = [abs(c - r) for c, r, l in zip(self.context_sentiments, self.response_sentiments, self.labels) if l == 0]
         
@@ -352,7 +350,6 @@ class SemanticAnalyzer(BaseAnalyzer):
         axes[1, 0].set_title('Degree of Sentiment Polarity Mismatch', fontsize=14, fontweight='bold')
         axes[1, 0].grid(axis='y', alpha=0.3)
         
-        # 4. Key Metrics Comparison
         categories = ['Semantic Similarity', 'Polarity Gap']
         sarcasm_values = [stats['sarcasm_similarity_mean'], stats['sarcasm_polarity_gap_mean']]
         normal_values = [stats['normal_similarity_mean'], stats['normal_polarity_gap_mean']]
@@ -373,7 +370,7 @@ class SemanticAnalyzer(BaseAnalyzer):
         plt.savefig('semantic_analysis.png', dpi=300, bbox_inches='tight')
         plt.show()
         
-        # Print statistics
+      
         print("\n📊 Key Findings in Semantic Analysis:")
         print(f"  • Avg similarity (Sarcasm): {stats['sarcasm_similarity_mean']:.3f}")
         print(f"  • Avg similarity (Normal): {stats['normal_similarity_mean']:.3f}")
@@ -387,38 +384,25 @@ class PragmaticAnalyzer(BaseAnalyzer):
     """Pragmatic analysis class - analyzes literal meaning vs. intended meaning in context"""
     
     def __init__(self):
-        self.sarcasm_cases = []  # Cases with meaning mismatch
-        self.normal_cases = []   # Cases with aligned meaning
+        self.sarcasm_cases = []  
+        self.normal_cases = []   
         
-        # Analyze intention types in explanations
-        self.intention_patterns = Counter()  # What sarcasm actually intends
-        self.context_response_alignment = []  # Sentiment alignment between context and response
+       
+        self.intention_patterns = Counter() 
+        self.context_response_alignment = []
         
     def analyze(self, contexts: List[str], responses: List[str], explanations: List[str], 
                 context_morphs: List[List[str]], response_morphs: List[List[str]], 
                 explanation_morphs: List[List[str]], labels: List[int],
                 context_sentiments: List[float] = None, response_sentiments: List[float] = None):
-        """
-        Analyze pragmatic meaning mismatch: literal meaning vs. intended meaning
-        
-        Args:
-            contexts: Context (what was said before)
-            responses: Response utterances (literal meaning)
-            explanations: Sarcasm explanations (intended meaning)
-            context_morphs: Morphemes from context
-            response_morphs: Morphemes from response
-            explanation_morphs: Morphemes from sarcasm_explanation
-            labels: Labels (0: normal, 1: sarcasm)
-            context_sentiments: Sentiment scores for context
-            response_sentiments: Sentiment scores for response
-        """
+    
         for idx, (ctx, resp, exp, ctx_m, resp_m, exp_m, label) in enumerate(zip(
             contexts, responses, explanations, context_morphs, response_morphs, explanation_morphs, labels
         )):
             ctx_sent = context_sentiments[idx] if context_sentiments else 0
             resp_sent = response_sentiments[idx] if response_sentiments else 0
             
-            if label == 1:  # Sarcasm - meaning mismatch exists
+            if label == 1:  
                 self.sarcasm_cases.append({
                     'context': ctx,
                     'response': resp,
@@ -431,12 +415,12 @@ class PragmaticAnalyzer(BaseAnalyzer):
                     'sentiment_mismatch': self._detect_sentiment_mismatch(ctx_sent, resp_sent)
                 })
                 
-                # Analyze what the speaker actually intends (from explanation)
+                
                 if exp_m:
                     intentions = self._extract_intentions(exp, exp_m)
                     self.intention_patterns.update(intentions)
                     
-            else:  # Normal - literal meaning = intended meaning
+            else: 
                 self.normal_cases.append({
                     'context': ctx,
                     'response': resp,
@@ -576,14 +560,14 @@ class PragmaticAnalyzer(BaseAnalyzer):
         }
     
     def visualize(self):
-        """Visualize pragmatic analysis: Intended Meanings Behind Sarcasm"""
+        
         
         df_intentions = self.get_intention_analysis()
         stats = self.get_statistics()
         
         fig, ax = plt.subplots(1, 1, figsize=(12, 8))
         
-        # Intended Meanings Behind Sarcasm
+    
         if not df_intentions.empty:
             intention_labels = {
                 'mocking': '비꼬기 (Mocking)',
@@ -607,7 +591,7 @@ class PragmaticAnalyzer(BaseAnalyzer):
             ax.grid(axis='x', alpha=0.3)
             ax.invert_yaxis()
             
-            # Add percentage labels
+      
             for idx, (label, pct) in enumerate(zip(df_intentions['label'], df_intentions['percentage'])):
                 ax.text(pct + 1, idx, f'{pct:.1f}%', va='center', fontsize=11)
         else:
@@ -618,8 +602,8 @@ class PragmaticAnalyzer(BaseAnalyzer):
         plt.savefig('pragmatic_analysis.png', dpi=300, bbox_inches='tight')
         plt.show()
         
-        # Print statistics
-        print("\n📊 화용론적 분석 주요 결과 (Key Findings in Pragmatic Analysis):")
+   
+        print("\n 화용론적 분석 주요 결과 (Key Findings in Pragmatic Analysis):")
         print(f"  • 전체 비꼬기 사례: {stats['total_sarcasm']}개")
         print(f"  • 설명이 있는 사례: {stats['with_explanation']}개 ({stats['explanation_rate']:.1f}%)")
         
@@ -639,7 +623,7 @@ class PragmaticAnalyzer(BaseAnalyzer):
 
 
 class IntegratedAnalyzer:
-    """Integrated analysis class - combines 4 types of analysis"""
+    
     
     def __init__(self, morphology: MorphologyAnalyzer, syntax: SyntaxAnalyzer, pragmatic: PragmaticAnalyzer, semantic: SemanticAnalyzer = None):
         self.morphology = morphology
@@ -648,7 +632,7 @@ class IntegratedAnalyzer:
         self.semantic = semantic
     
     def visualize(self):
-        """Visualize all 4 analysis results at a glance"""
+
         
         fig = plt.figure(figsize=(18, 10))
         gs = fig.add_gridspec(2, 3, hspace=0.3, wspace=0.3)
@@ -696,7 +680,7 @@ class IntegratedAnalyzer:
             ax3.set_title('Semantics: Key Metrics', fontsize=12, fontweight='bold')
             ax3.axis('off')
 
-        # 4. Pragmatics Summary
+    
         ax4 = fig.add_subplot(gs[1, 0])
         prag_df = self.pragmatic.get_distinctive_features()
         signal_names_en = {
@@ -714,14 +698,13 @@ class IntegratedAnalyzer:
         ax4.axvline(x=0, color='black', linestyle='-', linewidth=0.8)
         ax4.grid(axis='x', alpha=0.3)
         
-        # 5. Integrated Comparison (Radar Chart)
+     
         ax5 = fig.add_subplot(gs[1, 1:], projection='polar')
         
         categories_radar = ['Morphology', 'Syntax', 'Pragmatics']
         if self.semantic:
             categories_radar.insert(2, 'Semantics')
 
-        # Sarcasm identification score for each analysis (0-100)
         morph_score = morph_df['sarcasm_ratio'].mean()
         syntax_score = (normal_len_mean - sarcasm_len_mean) / normal_len_mean * 100 if normal_len_mean > 0 else 0
         pragmatic_score = prag_df['difference'].mean()
@@ -732,11 +715,11 @@ class IntegratedAnalyzer:
             scores.insert(2, semantic_score)
 
         total_score = np.mean(scores)
-        scores += scores[:1]  # Close the loop
+        scores += scores[:1]  
         categories_radar.append('Overall')
         
         angles = np.linspace(0, 2 * np.pi, len(categories_radar), endpoint=False).tolist()
-        scores += scores[:1]  # Close the loop
+        scores += scores[:1]  
         angles += angles[:1]
         
         ax5.plot(angles, scores, 'o-', linewidth=2, color='#ef4444', label='Sarcasm Identification Power')
@@ -751,7 +734,7 @@ class IntegratedAnalyzer:
         plt.savefig('integrated_analysis_summary.png', dpi=300, bbox_inches='tight')
         plt.show()
         
-        # Print comprehensive report
+    
         print("\n" + "="*70)
         print("📊 Comprehensive Report on Linguistic Analysis of Sarcasm")
         print("="*70)
