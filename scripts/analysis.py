@@ -14,7 +14,6 @@ PARENT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 
 sys.path.insert(0, PARENT_DIR)
 
-# Import refactored classes from the analyzers package
 from src.analyzers import (
     MorphologyAnalyzer,
     SyntaxAnalyzer,
@@ -23,10 +22,10 @@ from src.analyzers import (
     utils
 )
 
-# Enable pandas integration for tqdm
+
 tqdm.pandas()
 
-# --- Helper functions for Semantic Analysis ---
+
 
 def get_embeddings(texts: List[str], model, tokenizer, device, batch_size=32) -> np.ndarray:
     """Computes embeddings for a list of texts using a sentence-transformer model."""
@@ -37,7 +36,7 @@ def get_embeddings(texts: List[str], model, tokenizer, device, batch_size=32) ->
         with torch.no_grad():
             model_output = model(**encoded_input)
         
-        # Perform pooling (mean pooling)
+
         token_embeddings = model_output.last_hidden_state
         attention_mask = encoded_input['attention_mask']
         input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
@@ -60,7 +59,7 @@ def get_sentiments(texts: List[str], sentiment_pipeline, batch_size=32) -> List[
             sentiments.append(score)
     return sentiments
 
-# --- Main Analysis Pipeline ---
+
 
 def load_kocosa_data(data_dir: str) -> pd.DataFrame:
     """
@@ -80,10 +79,10 @@ def load_kocosa_data(data_dir: str) -> pd.DataFrame:
     
     df = pd.DataFrame(all_data)
     
-    # Convert labels to integers (Sarcasm: 1, Non-Sarcasm: 0)
+
     df['label'] = df['label'].apply(lambda x: 1 if x == 'Sarcasm' else 0)
     
-    print(f"✅ Total {len(df)} samples loaded.")
+    print(f" Total {len(df)} samples loaded.")
     return df
 
 
@@ -98,8 +97,7 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     print("\n🔄 Preprocessing data (morphological analysis)...")
-    
-    # Use progress_apply to show progress
+
     df['response_morphs'] = df['response'].progress_apply(utils.get_morphs)
     df['response_pos'] = df['response'].progress_apply(utils.get_pos)
 
@@ -117,11 +115,10 @@ def main():
     print("📊 Linguistic Feature Analysis of Korean Sarcasm")
     print("="*70)
 
-    # --- 1. Data Loading and Preprocessing ---
+
     DATA_DIR = '/data/deep/sarcasm/src/data/KoCoSa_json'
     df = load_kocosa_data(DATA_DIR)
-    # Reduce dataset size for faster processing if needed
-    # df = df.sample(n=1000, random_state=42).copy()
+  
     
     df = preprocess_data(df)
 
@@ -130,7 +127,6 @@ def main():
     morphs_list = df['response_morphs'].tolist()
     pos_tags_list = df['response_pos'].tolist()
 
-    # Prepare data for pragmatic analysis
     contexts = df['context'].tolist()
     responses = df['response'].tolist()
     explanations = df['sarcasm_explanation'].tolist()
@@ -138,9 +134,7 @@ def main():
     context_morphs_list = [utils.get_morphs(ctx) for ctx in contexts]
     explanation_morphs_list = [utils.get_morphs(exp) if exp else [] for exp in explanations]
 
-    # --- 2. Analyzers Execution ---
-    
-    # Morphological Analysis
+
     print("\n" + "-"*70)
     print("1️⃣  Running Morphological Analysis")
     print("-"*70)
@@ -148,7 +142,6 @@ def main():
     morphology_analyzer.analyze(morphs_list, labels)
     morphology_analyzer.visualize()
 
-    # Syntactic Analysis
     print("\n" + "-"*70)
     print("2️⃣  Running Syntactic Analysis")
     print("-"*70)
@@ -156,32 +149,30 @@ def main():
     syntax_analyzer.analyze(pos_tags_list, labels)
     syntax_analyzer.visualize()
 
-    # Semantic Analysis (Run before Pragmatic to get sentiment scores)
     print("\n" + "-"*70)
     print("3️⃣  Running Semantic Analysis")
     print("-"*70)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"⚙️ Using device: {device}")
+    print(f" Using device: {device}")
 
-    # Load models
-    print("🧠 Loading models for semantic analysis...")
+ 
+    print(" Loading models for semantic analysis...")
     embedding_tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/distiluse-base-multilingual-cased-v1')
     embedding_model = AutoModel.from_pretrained('sentence-transformers/distiluse-base-multilingual-cased-v1').to(device)
     
-    # Use a different sentiment model or skip sentiment analysis
+  
     try:
         sentiment_pipeline = pipeline('sentiment-analysis', model='matthewburke/korean_sentiment', device=0 if device.type == 'cuda' else -1)
     except Exception as e:
-        print(f"⚠️  Warning: Could not load sentiment model. Using neutral sentiment scores. Error: {e}")
-        # Create a dummy sentiment function
+        print(f"  Warning: Could not load sentiment model. Using neutral sentiment scores. Error: {e}")
+     
         def dummy_sentiment(texts):
             return [0.0] * len(texts)
         sentiment_pipeline = None
     
-    print("✅ Models loaded.")
+    print(" Models loaded.")
 
-    # Get embeddings and sentiments
     context_texts = df['context'].tolist()
     response_texts = df['response'].tolist()
 
@@ -192,7 +183,6 @@ def main():
         context_sentiments = get_sentiments(context_texts, sentiment_pipeline)
         response_sentiments = get_sentiments(response_texts, sentiment_pipeline)
     else:
-        # Use neutral sentiments if model loading failed
         context_sentiments = [0.0] * len(context_texts)
         response_sentiments = [0.0] * len(response_texts)
     
@@ -200,7 +190,6 @@ def main():
     semantic_analyzer.analyze(context_embeddings, response_embeddings, context_sentiments, response_sentiments, labels)
     semantic_analyzer.visualize()
 
-    # Pragmatic Analysis (Uses sentiment scores from semantic analysis)
     print("\n" + "-"*70)
     print("4️⃣  Running Pragmatic Analysis")
     print("-"*70)
