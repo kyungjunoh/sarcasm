@@ -28,17 +28,13 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed)
 
 def custom_data_collator(features: List[Dict]) -> Dict:
-    """
-    gpt_prompt 모델을 위한 custom data collator.
-    raw_context와 raw_response를 배치로 묶어서 전달.
-    """
+
     batch = {
         'input_ids': torch.stack([f['input_ids'] for f in features]),
         'attention_mask': torch.stack([f['attention_mask'] for f in features]),
         'labels': torch.stack([f['labels'] for f in features])
     }
     
-    # raw_context와 raw_response가 있으면 리스트로 전달
     if 'raw_context' in features[0]:
         batch['raw_context'] = [f['raw_context'] for f in features]
         batch['raw_response'] = [f['raw_response'] for f in features]
@@ -51,14 +47,12 @@ def main(args):
     print(f"device : {device}")
     set_seed(42)
 
-    ## =================== Data =================== ##
+
     train_dataset, val_dataset, test_dataset = get_dataset(args)
 
-    ## =================== Base_Model =================== ##
     model = get_model(args)
     model.to(device)
 
-    ## =================== Trainer =================== ##
 
 
     training_args = TrainingArguments(
@@ -71,7 +65,7 @@ def main(args):
         load_best_model_at_end=True
     )
 
-    # gpt_prompt 모델은 custom data collator 사용
+
     data_collator = custom_data_collator if args.model == 'gpt_prompt' else None
     
     trainer = Trainer(
@@ -83,7 +77,7 @@ def main(args):
         data_collator=data_collator,
     )
 
-    # gpt_prompt 모델은 few-shot 프롬프트 기반이므로 학습하지 않고 평가만 수행
+
     if args.model == 'gpt_prompt':
         print("\nFew-shot 프롬프트 모델 - 학습 없이 평가만 수행")
         print("\nValidation 결과:")
@@ -94,7 +88,7 @@ def main(args):
         test_metrics = trainer.evaluate(eval_dataset=test_dataset)
         print(test_metrics)
     else:
-        # 다른 모델들은 정상적으로 학습
+
         trainer.train()
         
         print("\n최종 테스트 결과 평가:")
